@@ -1,0 +1,976 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spline Style Celebration - Layered Cake</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #0a0715; /* Very Dark Purple/Black Background */
+            font-family: 'Inter', sans-serif;
+        }
+        #info {
+            position: absolute;
+            bottom: 40px;
+            width: 100%;
+            text-align: center;
+            pointer-events: none;
+            z-index: 10;
+        }
+        .pill {
+            /* Pill adjusted for dark background contrast */
+            background: rgba(255, 255, 255, 0.9);
+            color: #4a408d; /* Darker purple text */
+            padding: 14px 28px;
+            border-radius: 30px;
+            display: inline-block;
+            box-shadow: 0 10px 30px rgba(106, 90, 205, 0.35);
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            font-size: 0.9rem;
+            backdrop-filter: blur(10px);
+            transition: transform 0.3s ease;
+        }
+        #canvas-container {
+            width: 100vw;
+            height: 100vh;
+        }
+
+        /* --- Modal Styling for Photo Cards --- */
+        #photoModal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.9); /* Darker backdrop for focus */
+            backdrop-filter: blur(8px);
+            z-index: 1000; /* Ensure it is on top */
+            justify-content: center;
+            align-items: center;
+            transition: opacity 0.3s ease;
+        }
+        #modalContent {
+            position: relative;
+            background: #ffffff;
+            padding: 20px;
+            border-radius: 16px;
+            box-shadow: 0 15px 50px rgba(0,0,0,0.7);
+            max-width: 90%;
+            max-height: 90%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            /* Animation for popup */
+            transform: scale(0.9);
+            opacity: 0;
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.3s ease;
+        }
+        #photoModal.active #modalContent {
+            transform: scale(1);
+            opacity: 1;
+        }
+        #modalClose {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: #4a408d;
+            color: #fff;
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            font-size: 1.5rem;
+            line-height: 1;
+            cursor: pointer;
+            z-index: 10;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            transition: background 0.2s;
+        }
+        #modalClose:hover {
+            background: #6a5acd;
+        }
+        #modalImage {
+            max-width: 100%;
+            max-height: 80vh; 
+            height: auto;
+            border-radius: 8px;
+            object-fit: contain;
+        }
+        #modalTitle {
+            margin-top: 10px;
+            font-weight: 700;
+            color: #4a408d;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- <div id="info">
+        <div class="pill">
+            ✨ Drag to Rotate &nbsp;|&nbsp; 🎂 Click Cake to Blow Out Candles &nbsp;|&nbsp; 📸 Click Stack to view Photos &nbsp;|&nbsp; 💿 Click Vinyl to Play Music
+        </div>
+    </div> -->
+    <div id="canvas-container"></div>
+
+    <!-- Photo Modal Structure -->
+    <div id="photoModal">
+        <div id="modalContent">
+            <button id="modalClose">&times;</button>
+            <img id="modalImage" alt="Stack Photo">
+            <div id="modalTitle"></div>
+        </div>
+    </div>
+
+    <!-- Import Maps Polyfill -->
+    <script async src="https://unpkg.com/es-module-shims@1.6.3/dist/es-module-shims.js"></script>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdn.jsdelivr.net/npm/three@0.150.0/build/three.module.js",
+                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.150.0/examples/jsm/"
+            }
+        }
+    </script>
+    
+    <!-- TWEEN for animations -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tween.js/18.6.4/tween.umd.js"></script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        // --- Global Variables ---
+        let scene, camera, renderer, controls, raycaster, mouse;
+        let cakeGroup, photoStackGroup, vinylDiskGroup;
+        let photos = [
+        ];
+        let photos_title = [
+            "I promise to love you forever and ever",
+            "I just wna day your smile makes my day",
+            "God wa not able to be everywhere so he created you",
+            "A very happy birthday my love",
+            "may this bond we share grow long as we live untill death parts us",
+        ];
+        let isSlideshowActive = false;
+        let slideshowIndex = 0;
+        let candles = [];
+        let blobs = [];
+        let snowParticles; 
+        
+        let modal, modalImage, modalCloseButton, modalTitle;
+        let currentModalPhoto = null; 
+        
+        // Placeholder audio URL since local files are not accessible.
+        const AUDIO_URL = "./assets/audio.mp3";
+        let backgroundMusic; // To hold the Audio object
+
+        // Fallback URLs mimicking the requested local files. 
+        // Note: The dimensions (500x577) are kept proportional to the 3D card (1.3x1.5).
+        const IMAGE_FALLBACK_URLS = [
+            "./assets/image1.jpg",
+            "./assets/image2.jpg",
+            "./assets/image3.jpg",
+            "./assets/image4.gif",
+            "./assets/image5.gif",
+        ];
+
+        // --- Spline Aesthetic Palette ---
+        const PALETTE = {
+            bg: 0x0a0715,         // Very Deep Navy/Purple for almost black theme
+            cakeBase: 0xe84377,   // Cake Sponge Color (Pink)
+            cakeIcing: 0xf2c4d3,  // Bright White for thick, shiny frosting
+            plate: 0xFFFFFF,
+            accent: 0xB5EAD7,     // Mint
+            table: 0xE2F0CB,      // Light Greenish
+            tableWood: 0x8B4513,  // Light Brown Wood (SaddleBrown)
+            tableMat: 0x650a02,   // Deep Red Mat
+            photoBorder: 0xFFFFFF,
+            candle: 0xFF0000      // Periwinkle
+        };
+
+        init();
+        animate();
+
+        function init() {
+            // 1. Scene
+            const container = document.getElementById('canvas-container');
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(PALETTE.bg);
+            scene.fog = new THREE.Fog(PALETTE.bg, 10, 30);
+
+            // 2. Camera
+            camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.1, 100);
+            camera.position.set(0, 5, 12);
+
+            // 3. Renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 1.1;
+            container.appendChild(renderer.domElement);
+
+            // 4. Lighting
+            setupLighting();
+
+            // 5. Objects
+            createBackgroundBlobs(); 
+            createTable();
+            createCake(); 
+            createPhotoStack();
+            createVinylDisk(); 
+            createSnow(); 
+
+            // 6. Controls
+            controls = new OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.maxPolarAngle = Math.PI / 2 - 0.05;
+            controls.minDistance = 5;
+            controls.maxDistance = 20;
+
+            raycaster = new THREE.Raycaster();
+            mouse = new THREE.Vector2();
+            
+            // 7. Modal Setup
+            modal = document.getElementById('photoModal');
+            modalImage = document.getElementById('modalImage');
+            modalTitle = document.getElementById('modalTitle');
+            modalCloseButton = document.getElementById('modalClose');
+            modalCloseButton.addEventListener('click', closePhotoModal);
+
+            window.addEventListener('resize', onWindowResize);
+            window.addEventListener('click', onMouseClick);
+            window.addEventListener('mousemove', onMouseMove);
+        }
+
+        function setupLighting() {
+            const ambient = new THREE.AmbientLight(0xffffff, 1.0);
+            scene.add(ambient);
+
+            const mainLight = new THREE.DirectionalLight(0xffffff, 0.9);
+            mainLight.position.set(5, 10, 7);
+            mainLight.castShadow = true;
+            mainLight.shadow.mapSize.set(2048, 2048);
+            mainLight.shadow.bias = -0.0001;
+            scene.add(mainLight);
+
+            const rimLight = new THREE.SpotLight(0xaaccff, 0.8);
+            rimLight.position.set(-5, 5, -5);
+            rimLight.lookAt(0,0,0);
+            scene.add(rimLight);
+        }
+
+        function createCircleTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 32;
+            canvas.height = 32;
+            const ctx = canvas.getContext('2d');
+            
+            ctx.beginPath();
+            ctx.arc(16, 16, 15, 0, 2 * Math.PI);
+            ctx.fillStyle = 'white';
+            ctx.fill();
+            
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.needsUpdate = true;
+            return texture;
+        }
+
+        function createSnow() {
+            const particleCount = 2000;
+            const geometry = new THREE.BufferGeometry();
+            const positions = [];
+            const sizes = [];
+
+            const range = 25; 
+
+            for (let i = 0; i < particleCount; i++) {
+                positions.push(
+                    (Math.random() * 2 - 1) * range, 
+                    Math.random() * 40 - 20,         
+                    (Math.random() * 2 - 1) * range  
+                );
+                sizes.push(0.05 + Math.random() * 0.2); 
+            }
+
+            geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+            geometry.setAttribute('size', new THREE.Float32BufferAttribute(sizes, 1));
+            
+            const material = new THREE.PointsMaterial({
+                color: 0xffffff,
+                size: 0.3, 
+                sizeAttenuation: true,
+                transparent: true,
+                opacity: 0.8,
+                map: createCircleTexture(), 
+                blending: THREE.AdditiveBlending 
+            });
+
+            snowParticles = new THREE.Points(geometry, material);
+            scene.add(snowParticles);
+        }
+
+        function updateSnow() {
+            if (!snowParticles) return;
+
+            const positions = snowParticles.geometry.attributes.position.array;
+            const fallSpeed = 0.05;
+            const floorY = -5; 
+
+            for (let i = 1; i < positions.length; i += 3) {
+                positions[i] -= fallSpeed;
+
+                if (positions[i] < floorY) {
+                    positions[i] = 20; 
+                    positions[i-1] = (Math.random() * 2 - 1) * 25;
+                    positions[i+1] = (Math.random() * 2 - 1) * 25;
+                }
+            }
+            snowParticles.geometry.attributes.position.needsUpdate = true;
+        }
+
+        function createBackgroundBlobs() {
+            const material = new THREE.MeshStandardMaterial({
+                color: 0x9370DB, // Medium Purple
+                roughness: 0.2,
+                metalness: 0.1
+            });
+
+            const pos = [
+                [-8, 2, -10],
+                [8, 5, -12],
+                [-4, 8, -8]
+            ];
+
+            pos.forEach((p, i) => {
+                const blob = new THREE.Mesh(new THREE.IcosahedronGeometry(2 + Math.random(), 2), material);
+                blob.position.set(...p);
+                scene.add(blob);
+                blobs.push({ mesh: blob, speed: 0.001 + Math.random() * 0.002, offset: i });
+            });
+        }
+
+        // function createTable() {
+        //     const geometry = new THREE.CylinderGeometry(5, 5, 1, 64);
+        //     const material = new THREE.MeshStandardMaterial({ 
+        //         color: 0xffffff, 
+        //         roughness: 0.3,
+        //         metalness: 0.1
+        //     });
+            
+        //     const table = new THREE.Mesh(geometry, material);
+        //     table.position.y = -0.5;
+        //     table.receiveShadow = true;
+        //     scene.add(table);
+        // }
+        function createTable() {
+            const tableGroup = new THREE.Group();
+            const woodMaterial = new THREE.MeshStandardMaterial({ 
+                color: PALETTE.tableWood, 
+                roughness: 0.6,
+                metalness: 0.1
+            });
+            const matMaterial = new THREE.MeshStandardMaterial({
+                color: PALETTE.tableMat,
+                roughness: 0.8,
+                metalness: 0.0
+            });
+
+            const TABLE_WIDTH = 8;
+            const TABLE_DEPTH = 8;
+            const TABLE_HEIGHT = 0.2;
+            const LEG_HEIGHT = 4;
+            const LEG_THICKNESS = 0.3;
+            const LEG_OFFSET = TABLE_WIDTH / 2 - LEG_THICKNESS * 1.5;
+
+            // 1. Table Top (Keeps top surface at Y=0)
+            const tableTopGeo = new THREE.BoxGeometry(TABLE_WIDTH, TABLE_HEIGHT, TABLE_DEPTH);
+            const tabletop = new THREE.Mesh(tableTopGeo, woodMaterial);
+            tabletop.position.y = -TABLE_HEIGHT / 2; // Center at Y = -0.1
+            tabletop.receiveShadow = true;
+            tableGroup.add(tabletop);
+
+            // 2. Table Legs (Placed below the tabletop)
+            const legGeo = new THREE.BoxGeometry(LEG_THICKNESS, LEG_HEIGHT, LEG_THICKNESS);
+            const legY = -(TABLE_HEIGHT / 2) - (LEG_HEIGHT / 2); // Center Y = -0.1 - 2.0 = -2.1
+
+            const legPositions = [
+                [LEG_OFFSET, legY, LEG_OFFSET],
+                [-LEG_OFFSET, legY, LEG_OFFSET],
+                [LEG_OFFSET, legY, -LEG_OFFSET],
+                [-LEG_OFFSET, legY, -LEG_OFFSET]
+            ];
+
+            legPositions.forEach(pos => {
+                const leg = new THREE.Mesh(legGeo, woodMaterial);
+                leg.position.set(pos[0], pos[1], pos[2]);
+                tableGroup.add(leg);
+            });
+
+            // 3. Red Mat on Top (Slightly smaller than the table and slightly above Y=0)
+            const matWidth = TABLE_WIDTH * 0.95;
+            const matDepth = TABLE_DEPTH * 0.95;
+            const matThickness = 0.02;
+            const matGeo = new THREE.BoxGeometry(matWidth, matThickness, matDepth);
+            
+            const mat = new THREE.Mesh(matGeo, matMaterial);
+            mat.position.y = matThickness / 2 + 0.001; // Slightly above Y=0 to prevent Z-fighting
+            mat.receiveShadow = true;
+            tableGroup.add(mat);
+
+            scene.add(tableGroup);
+        }
+        /**
+         * Creates a clickable vinyl disk on the table that toggles audio playback.
+         */
+        function createVinylDisk() {
+            vinylDiskGroup = new THREE.Group();
+
+            // 1. Black Vinyl Disk
+            const diskGeo = new THREE.CylinderGeometry(1.2, 1.2, 0.05, 64);
+            const diskMat = new THREE.MeshStandardMaterial({ 
+                color: 0x111111, 
+                roughness: 0.9,
+                metalness: 0.8 
+            });
+            const disk = new THREE.Mesh(diskGeo, diskMat);
+            disk.castShadow = true;
+            disk.receiveShadow = true;
+            disk.name = "vinylDisk"; 
+
+            // 2. Central Label (Red/Orange)
+            const labelGeo = new THREE.CylinderGeometry(0.2, 0.2, 0.06, 32);
+            const labelMat = new THREE.MeshStandardMaterial({ 
+                color: 0xE74C3C, // Red
+                roughness: 0.5 
+            });
+            const label = new THREE.Mesh(labelGeo, labelMat);
+            label.position.y = 0.006; // Slightly above the disk
+            disk.add(label);
+
+            vinylDiskGroup.add(disk);
+            // Position on the table (Y=0.025 is half the disk height, placing it on the table)
+            vinylDiskGroup.position.set(2.5, 0.025, -1.5); 
+            // Initial Y rotation for static tilt
+            vinylDiskGroup.rotation.y = Math.PI / 6; 
+
+            scene.add(vinylDiskGroup);
+
+            // Initialize Audio using a public placeholder
+            backgroundMusic = new Audio(AUDIO_URL);
+            backgroundMusic.loop = true; 
+            backgroundMusic.volume = 0.5;
+            
+            // Store the rotation tween on the group's userData
+            vinylDiskGroup.userData.rotationTween = null;
+        }
+
+        /**
+         * Toggles the background music and animates the vinyl disk rotation.
+         */
+        function toggleMusic() {
+            if (backgroundMusic.paused) {
+                // Play music and handle potential browser restrictions (requires user gesture)
+                backgroundMusic.play().catch(e => {
+                    console.error("Audio playback failed (user interaction required):", e);
+                });
+                console.log("Music playing. Vinyl spinning.");
+                
+                // Start a continuous rotation animation for the disk (around Y axis)
+                if (!vinylDiskGroup.userData.rotationTween) {
+                    const dummyRotation = { y: vinylDiskGroup.rotation.y };
+                    
+                    vinylDiskGroup.userData.rotationTween = new TWEEN.Tween(dummyRotation)
+                        .to({ y: dummyRotation.y + Math.PI * 2 }, 3000) // 3 seconds for one rotation
+                        .repeat(Infinity)
+                        .easing(TWEEN.Easing.Linear.None)
+                        .onUpdate(() => {
+                             // Apply the rotation from the dummy object to the actual mesh
+                             vinylDiskGroup.rotation.y = dummyRotation.y;
+                        })
+                        .onRepeat(() => {
+                             // Reset the dummy rotation for the next cycle
+                             dummyRotation.y -= Math.PI * 2;
+                        })
+                        .start();
+                }
+            } else {
+                backgroundMusic.pause();
+                console.log("Music paused. Vinyl stopped.");
+                
+                // Stop the rotation animation
+                if (vinylDiskGroup.userData.rotationTween) {
+                    vinylDiskGroup.userData.rotationTween.stop();
+                    vinylDiskGroup.userData.rotationTween = null;
+                }
+            }
+        }
+
+        /**
+         * Creates a single candle mesh, including the body, wick, flame, and light.
+         */
+        function createCandle(x, y, z) {
+            const candleGroup = new THREE.Group();
+            
+            // Candle body
+            const geo = new THREE.CylinderGeometry(0.05, 0.05, 0.5, 16);
+            const mat = new THREE.MeshStandardMaterial({ color: PALETTE.candle, emissive: PALETTE.candle, emissiveIntensity: 0.1 });
+            const body = new THREE.Mesh(geo, mat);
+            body.position.y = 0.25; 
+            candleGroup.add(body);
+
+            // Wick (small dark cylinder)
+            const wick = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.01, 0.01, 0.1, 8),
+                new THREE.MeshBasicMaterial({ color: 0x333333 })
+            );
+            wick.position.y = 0.5 + 0.05; 
+            wick.name = 'wick';
+            candleGroup.add(wick);
+
+            // Flame (yellow sphere)
+            const flame = new THREE.Mesh(
+                new THREE.SphereGeometry(0.08, 8, 8),
+                new THREE.MeshBasicMaterial({ color: 0xffaa00 })
+            );
+            flame.position.y = 0.5 + 0.15; 
+            flame.name = 'flame';
+            candleGroup.add(flame);
+
+            // Light for the flame
+            const pointLight = new THREE.PointLight(0xffaa00, 2, 2);
+            pointLight.position.set(0, 0.65, 0);
+            pointLight.name = 'flameLight';
+            pointLight.decay = 2; 
+            pointLight.castShadow = false;
+            candleGroup.add(pointLight);
+            
+            candleGroup.position.set(x, y, z);
+            cakeGroup.add(candleGroup);
+            
+            // Store candle data for blowing out and flickering
+            candles.push({ 
+                group: candleGroup, 
+                flame: flame, 
+                wick: wick, 
+                light: pointLight, 
+                isLit: true, 
+                timeOffset: Math.random() * 1000 
+            });
+        }
+
+        function createCake() {
+            cakeGroup = new THREE.Group();
+
+            // Materials
+            const spongeMat = new THREE.MeshStandardMaterial({ color: PALETTE.cakeBase, roughness: 0.5 });
+            const frostingMat = new THREE.MeshStandardMaterial({ 
+                color: PALETTE.cakeIcing, 
+                roughness: 0.1, // Shiny frosting
+                metalness: 0.1,
+                side: THREE.DoubleSide
+            });
+            
+            /**
+             * Adds a cake layer (sponge + rounded/thick frosting on top).
+             */
+            const addLayer = (radius, height, center_y) => {
+                const spongeTopY = center_y + height / 2;
+                const frostingThickness = 0.08;
+                const frostingRimRadius = 0.15; // Controls the thickness of the rounded edge
+                
+                // 1. Sponge Layer
+                const layerGeo = new THREE.CylinderGeometry(radius, radius, height, 40);
+                const layer = new THREE.Mesh(layerGeo, spongeMat);
+                layer.position.y = center_y;
+                layer.castShadow = true;
+                cakeGroup.add(layer);
+
+                // 2. Top Frosting Disk (Inner flat part)
+                const topFrostingGeo = new THREE.CylinderGeometry(radius, radius, frostingThickness, 40);
+                const topFrosting = new THREE.Mesh(topFrostingGeo, frostingMat);
+                topFrosting.position.y = spongeTopY + frostingThickness / 2;
+                topFrosting.castShadow = true;
+                cakeGroup.add(topFrosting);
+
+                // 3. Top Frosting Rim (Torus for rounded edge/drip effect)
+                const rimGeo = new THREE.TorusGeometry(
+                    radius + frostingRimRadius / 3, // Major Radius
+                    frostingRimRadius,              // Minor Radius (thickness)
+                    16,                             // Tubular segments
+                    100                             // Radial segments
+                );
+                const frostingRim = new THREE.Mesh(rimGeo, frostingMat);
+                
+                // Position the torus so its center sits on top of the frosting disk, and slightly overlapping the sponge edge
+                frostingRim.position.y = topFrosting.position.y;
+                frostingRim.rotation.x = Math.PI / 2; // Rotate to lie flat
+                frostingRim.castShadow = true;
+                cakeGroup.add(frostingRim);
+
+                // Calculate the new top surface Y position (for the next layer or candles)
+                return { 
+                    topY: topFrosting.position.y + frostingThickness / 2, 
+                    radius: radius 
+                };
+            };
+
+            // Layer 1 (Bottom): Radius 1.8, Height 0.8, Center Y 0.4
+            const L1 = addLayer(1.8, 0.8, 0.4); 
+            
+            // Layer 2 (Middle): Radius 1.3, Height 0.7. Center Y is on top of L1's frosting + L2 height/2
+            const L2 = addLayer(1.3, 0.7, L1.topY + 0.7/2); 
+
+            // Layer 3 (Top): Radius 0.9, Height 0.6
+            const topLayerData = addLayer(0.9, 0.6, L2.topY + 0.6/2); 
+            
+            // Initial Candles Arrangement (on the top layer frosting)
+            const candleCount = 8;
+            const candleRadius = topLayerData.radius * 0.7; 
+            const topFrostingSurfaceY = topLayerData.topY; 
+
+            for(let i = 0; i < candleCount; i++) {
+                const angle = (i / candleCount) * Math.PI * 2;
+                const x = Math.cos(angle) * candleRadius;
+                const z = Math.sin(angle) * candleRadius;
+                
+                // Add a small offset so the candle body sits on the frosting surface
+                createCandle(x, topFrostingSurfaceY, z); 
+            }
+            
+            // Collider
+            const collider = new THREE.Mesh(
+                new THREE.CylinderGeometry(2, 2, topLayerData.topY + 0.5, 16),
+                new THREE.MeshBasicMaterial({ visible: false })
+            );
+            collider.position.y = (topLayerData.topY + 0.5) / 2;
+            collider.name = "cakeCollider";
+            cakeGroup.add(collider);
+
+            cakeGroup.position.set(-1.5, 0, 0);
+            scene.add(cakeGroup);
+        }
+        
+        /**
+         * Hides the flame, wick, and fades the light for all candles.
+         */
+        function blowOutCandles() {
+            // Only blow out if at least one candle is lit
+            if (candles.some(c => c.isLit)) {
+                candles.forEach(candle => {
+                    candle.isLit = false; // Stop flicker animation
+                    
+                    // 1. Light Fade-out
+                    if (candle.light) {
+                        new TWEEN.Tween({ intensity: candle.light.intensity })
+                            .to({ intensity: 0 }, 500)
+                            .onUpdate(function(obj) {
+                                candle.light.intensity = obj.intensity;
+                            })
+                            .start();
+                    }
+
+                    // 2. Hide Flame and Wick (scale down to zero)
+                    new TWEEN.Tween({ scale: 1 })
+                        .to({ scale: 0.001 }, 300)
+                        .easing(TWEEN.Easing.Quadratic.Out)
+                        .onUpdate(function(obj) {
+                            candle.flame.scale.set(obj.scale, obj.scale, obj.scale);
+                            candle.wick.scale.set(obj.scale, obj.scale, obj.scale);
+                        })
+                        .start();
+                });
+            }
+        }
+
+        /**
+         * Creates a texture for the 3D card surface using an image URL or a text fallback.
+         */
+        function createPhotoTexture(url, fallbackText) {
+            const loader = new THREE.TextureLoader();
+            // Load external texture for the 3D card surface
+            const texture = loader.load(url, 
+                // Success callback
+                (t) => { t.needsUpdate = true; },
+                // Progress callback
+                undefined,
+                // Error callback (Show text/color fallback if loading fails)
+                () => {
+                    console.warn(`Could not load texture from URL: ${url}. Using fallback.`);
+                    const cvs = document.createElement('canvas');
+                    cvs.width = 512;
+                    cvs.height = 600;
+                    const ctx = cvs.getContext('2d');
+                    ctx.fillStyle = PALETTE.photoBorder;
+                    ctx.fillRect(0, 0, 512, 600);
+                    
+                    ctx.fillStyle = '#444';
+                    ctx.font = 'bold 50px Inter, Arial';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(fallbackText, 256, 300);
+                    
+                    const fallbackTexture = new THREE.CanvasTexture(cvs);
+                    fallbackTexture.needsUpdate = true;
+                    return fallbackTexture;
+                }
+            );
+            return texture;
+        }
+
+        function createPhotoStack() {
+            photoStackGroup = new THREE.Group();
+            
+            // Mimic the requested file structure
+            const files = ["./assets/image1.jpg", "./assets/image2.jpg", "./assets/image3.jpg", "./assets/image4.jpg", "./assets/image5.jpg"];
+            
+            files.forEach((file, i) => {
+                const url = IMAGE_FALLBACK_URLS[i % IMAGE_FALLBACK_URLS.length]; 
+                const title = photos_title[i % photos_title.length]; 
+                const fallbackText = `Photo ${i + 1}`;
+                
+                // Use TextureLoader for the 3D card surface
+                const tex = createPhotoTexture(url, fallbackText); 
+                
+                // BoxGeometry simulates a thin, slightly wider photo card (1.3 width, 1.5 length)
+                const geo = new THREE.BoxGeometry(1.3, 0.04, 1.5);
+                const mat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.4 });
+                
+                const mesh = new THREE.Mesh(geo, mat);
+                mesh.castShadow = true;
+                mesh.receiveShadow = true;
+
+                const y = i * 0.05;
+                const r = (Math.random() - 0.5) * 0.4; // Small random rotation for stack effect
+                mesh.position.set(0, y, 0);
+                mesh.rotation.y = r;
+
+                mesh.userData = {
+                    id: i,
+                    originalPos: new THREE.Vector3(0, y, 0),
+                    originalRot: new THREE.Euler(0, r, 0),
+                    isPhoto: true,
+                    imageUrl: url, // Store the URL for the modal
+                    imageTitle: title, // Store the URL for the modal
+                    fileName: file
+                };
+
+                photos.push(mesh);
+                photoStackGroup.add(mesh);
+            });
+
+            // The last photo added is on top (highest 'i'), which is correct for the initial slideshow start
+            
+            photoStackGroup.position.set(1.5, 0, 0.5);
+            scene.add(photoStackGroup);
+
+            // Collider for the entire stack interaction
+            const collider = new THREE.Mesh(
+                new THREE.BoxGeometry(1.5, 1, 1.5),
+                new THREE.MeshBasicMaterial({ visible: false })
+            );
+            collider.position.y = 0.5;
+            collider.name = "stackCollider";
+            photoStackGroup.add(collider);
+        }
+
+        // --- Slideshow & Modal Logic ---
+
+        function startSlideshow() {
+            if (isSlideshowActive) return;
+            isSlideshowActive = true;
+            // Start from the top photo (last one in the array)
+            console.log(photos);
+            slideshowIndex = photos.length - 1; 
+            playNextSlide();
+        }
+
+        function playNextSlide() {
+            if (slideshowIndex < 0) {
+                // All photos viewed, reset the stack
+                isSlideshowActive = false;
+                resetStack();
+                return;
+            }
+
+            const photo = photos[slideshowIndex];
+            const text = photos_title[slideshowIndex%photos_title.length];
+            console.log(slideshowIndex)
+            console.log(text)
+            photo.visible = true; // Ensure the next card is visible
+            
+            // Detach from the stack group to animate in world space
+            scene.attach(photo); 
+            
+            const camDir = new THREE.Vector3();
+            camera.getWorldDirection(camDir);
+            // End position is slightly in front of the camera (world coordinates)
+            const end = new THREE.Vector3().copy(camera.position).add(camDir.multiplyScalar(4)); 
+            
+            // Calculate end rotation to face the camera
+            const dummy = new THREE.Object3D();
+            dummy.position.copy(end);
+            dummy.lookAt(camera.position);
+            const endRot = dummy.rotation;
+
+            // Animate position (move to center)
+            new TWEEN.Tween(photo.position)
+                .to(end, 1000)
+                .easing(TWEEN.Easing.Cubic.InOut)
+                .start();
+            
+            // Animate rotation (to face the camera)
+            new TWEEN.Tween(photo.rotation)
+                .to({
+                    x: endRot.x,
+                    y: endRot.y,
+                    z: endRot.z
+                }, 1000)
+                .easing(TWEEN.Easing.Cubic.InOut)
+                .onComplete(() => {
+                    // Animation complete, show the modal
+                    showPhotoModal(photo,text);
+                })
+                .start();
+        }
+
+        function showPhotoModal(photo,text) {
+            currentModalPhoto = photo;
+            console.log(text)
+            // Set image source and title
+            modalImage.src = photo.userData.imageUrl;
+            modalTitle.textContent = text; // Display the mock file name
+            
+            // Show the modal with a small delay for smooth transition
+            setTimeout(() => {
+                modal.style.display = 'flex';
+                // Add 'active' class to trigger the CSS transition for modal content
+                modal.classList.add('active'); 
+            }, 50);
+
+            // Hide the 3D photo mesh while the modal is open
+            photo.visible = false;
+        }
+
+        function closePhotoModal() {
+            if (!currentModalPhoto) return;
+            
+            // Remove 'active' class to start the closing transition
+            modal.classList.remove('active');
+            
+            // Wait for transition to complete before hiding the display property
+            setTimeout(() => {
+                modal.style.display = 'none'; 
+                
+                // --- Transition to Next Card ---
+                currentModalPhoto = null; 
+                slideshowIndex--;
+                
+                if (slideshowIndex >= 0) {
+                    // Start the process for the next photo
+                    playNextSlide();
+                } else {
+                    // All photos processed, reset the stack for a new run
+                    isSlideshowActive = false;
+                    resetStack();
+                }
+
+            }, 300); // Match this timeout to the CSS transition duration
+        }
+
+        function resetStack() {
+            // Re-stack all photos and make them visible
+            photos.forEach(p => {
+                p.visible = true;
+                photoStackGroup.attach(p); // Re-attach to group
+                
+                // Animate back to original position/rotation
+                new TWEEN.Tween(p.position).to(p.userData.originalPos, 600).start(); 
+                new TWEEN.Tween(p.rotation).to({
+                    x: p.userData.originalRot.x,
+                    y: p.userData.originalRot.y,
+                    z: p.userData.originalRot.z
+                }, 600).start();
+            });
+             // Reset the index for the next cycle
+            slideshowIndex = photos.length - 1; 
+        }
+
+        // --- Interaction ---
+
+        function onMouseMove(event) {
+            // Parallax effect on background blobs
+            const x = (event.clientX / window.innerWidth) * 2 - 1;
+            const y = -(event.clientY / window.innerHeight) * 2 + 1;
+            
+            blobs.forEach(b => {
+                b.mesh.rotation.z = Math.sin(x * 0.5) * 0.1;
+                b.mesh.rotation.x = Math.sin(y * 0.5) * 0.1;
+            });
+        }
+
+        function onMouseClick(event) {
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(scene.children, true);
+
+            if (intersects.length > 0) {
+                const obj = intersects[0].object;
+                
+                if (obj.name === "cakeCollider" || obj.parent === cakeGroup) {
+                    blowOutCandles(); 
+                }
+
+                if (obj.name === "stackCollider" || (obj.userData && obj.userData.isPhoto)) {
+                    if (!isSlideshowActive) startSlideshow();
+                }
+
+                // Vinyl Disk Click
+                if (obj.name === "vinylDisk") {
+                    toggleMusic();
+                }
+            }
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function animate(time) {
+            requestAnimationFrame(animate);
+            TWEEN.update(time);
+            controls.update();
+
+            // Animate blobs
+            blobs.forEach((b, i) => {
+                b.mesh.rotation.x += 0.001 * (i+1);
+                b.mesh.rotation.y += 0.002;
+                b.mesh.position.y += Math.sin(time * 0.001 + i) * 0.01;
+            });
+
+            // Candle Flicker
+            candles.forEach(c => {
+                if (c.isLit) {
+                    // Slight random movement for the flame
+                    c.flame.position.x = Math.sin(time * 0.01 + c.timeOffset) * 0.01;
+                    c.flame.position.z = Math.cos(time * 0.008 + c.timeOffset) * 0.01;
+                    
+                    // Intensity flicker
+                    c.light.intensity = 2 + Math.sin(time * 0.02 + c.timeOffset) * 0.5;
+                }
+            });
+
+            // Update Snow Particles
+            updateSnow();
+
+            renderer.render(scene, camera);
+        }
+    </script>
+</body>
+</html>
