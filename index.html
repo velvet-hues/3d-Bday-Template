@@ -158,7 +158,7 @@
         let candles = [];
         let blobs = [];
         let snowParticles; 
-        
+        let musicBoxGroup;
         let modal, modalImage, modalCloseButton, modalTitle;
         let currentModalPhoto = null; 
         
@@ -186,6 +186,7 @@
             table: 0xE2F0CB,      // Light Greenish
             tableWood: 0x8B4513,  // Light Brown Wood (SaddleBrown)
             tableMat: 0x650a02,   // Deep Red Mat
+            musicBoxBrown: 0x6E442B, // Darker, rich brown for the box
             photoBorder: 0xFFFFFF,
             candle: 0xFF0000      // Periwinkle
         };
@@ -221,7 +222,7 @@
             createTable();
             createCake(); 
             createPhotoStack();
-            createVinylDisk(); 
+            createMusicBox();
             createSnow(); 
 
             // 6. Controls
@@ -241,6 +242,10 @@
             modalTitle = document.getElementById('modalTitle');
             modalCloseButton = document.getElementById('modalClose');
             modalCloseButton.addEventListener('click', closePhotoModal);
+            // Initialize Audio
+            backgroundMusic = new Audio(AUDIO_URL);
+            backgroundMusic.loop = true; 
+            backgroundMusic.volume = 0.5;
 
             window.addEventListener('resize', onWindowResize);
             window.addEventListener('click', onMouseClick);
@@ -427,8 +432,43 @@
         /**
          * Creates a clickable vinyl disk on the table that toggles audio playback.
          */
-        function createVinylDisk() {
-            vinylDiskGroup = new THREE.Group();
+        function createMusicBox() {
+            let musicBoxGroup = new THREE.Group();
+            
+            const BOX_W = 2.8;
+            const BOX_H = 0.8;
+            const BOX_D = 2.8;
+
+            const woodMaterial = new THREE.MeshStandardMaterial({
+                color: PALETTE.musicBoxBrown, 
+                roughness: 0.7,
+                metalness: 0.05
+            });
+
+            // 1. Music Box Body
+            const boxGeo = new THREE.BoxGeometry(BOX_W, BOX_H, BOX_D);
+            const box = new THREE.Mesh(boxGeo, woodMaterial);
+            box.position.y = BOX_H / 2; // Positioned to sit on the table (Y=0)
+            box.castShadow = true;
+            box.receiveShadow = true;
+            box.name = "musicBox"; // Name the box for click detection
+            musicBoxGroup.add(box);
+
+            // 2. Add the Vinyl Disk on top
+            vinylDiskGroup = createVinylDisk();
+            musicBoxGroup.add(vinylDiskGroup);
+            
+            // Position the entire music box on the table
+            musicBoxGroup.position.set(2.5, 0, -1.5); 
+            musicBoxGroup.rotation.y = Math.PI / 12; // Slight overall tilt
+
+            // Store the rotation tween on the group's userData
+            musicBoxGroup.userData.rotationTween = null;
+
+            scene.add(musicBoxGroup);
+        }
+function createVinylDisk() {
+            const vinylGroup = new THREE.Group();
 
             // 1. Black Vinyl Disk
             const diskGeo = new THREE.CylinderGeometry(1.2, 1.2, 0.05, 64);
@@ -441,6 +481,7 @@
             disk.castShadow = true;
             disk.receiveShadow = true;
             disk.name = "vinylDisk"; 
+            vinylGroup.add(disk);
 
             // 2. Central Label (Red/Orange)
             const labelGeo = new THREE.CylinderGeometry(0.2, 0.2, 0.06, 32);
@@ -452,27 +493,19 @@
             label.position.y = 0.006; // Slightly above the disk
             disk.add(label);
 
-            vinylDiskGroup.add(disk);
-            // Position on the table (Y=0.025 is half the disk height, placing it on the table)
-            vinylDiskGroup.position.set(2.5, 0.025, -1.5); 
-            // Initial Y rotation for static tilt
-            vinylDiskGroup.rotation.y = Math.PI / 6; 
-
-            scene.add(vinylDiskGroup);
-
-            // Initialize Audio using a public placeholder
-            backgroundMusic = new Audio(AUDIO_URL);
-            backgroundMusic.loop = true; 
-            backgroundMusic.volume = 0.5;
-            
-            // Store the rotation tween on the group's userData
-            vinylDiskGroup.userData.rotationTween = null;
+            // Set the vinyl to sit on top of the music box (BOX_H = 0.8, disk height = 0.05)
+            // Position: 0.8 (box height) + 0.025 (half disk height) = 0.825
+            vinylGroup.position.set(0, 0.825, 0); 
+            vinylGroup.rotation.y = Math.PI / 4; 
+            console.log("guewbdsbcdkc")
+            return vinylGroup;
         }
 
         /**
          * Toggles the background music and animates the vinyl disk rotation.
          */
         function toggleMusic() {
+            if (!vinylDiskGroup) return; 
             if (backgroundMusic.paused) {
                 // Play music and handle potential browser restrictions (requires user gesture)
                 backgroundMusic.play().catch(e => {
@@ -764,7 +797,7 @@
 
             // The last photo added is on top (highest 'i'), which is correct for the initial slideshow start
             
-            photoStackGroup.position.set(1.5, 0, 0.5);
+            photoStackGroup.position.set(2, 0, 2);
             scene.add(photoStackGroup);
 
             // Collider for the entire stack interaction
