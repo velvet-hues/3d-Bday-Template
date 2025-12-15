@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,9 +9,11 @@
         body {
             margin: 0;
             overflow: hidden;
-            background-color: #0a0715; /* Very Dark Purple/Black Background */
+            background-color: #0a0715;
+            /* Very Dark Purple/Black Background */
             font-family: 'Inter', sans-serif;
         }
+
         #info {
             position: absolute;
             bottom: 40px;
@@ -19,10 +22,12 @@
             pointer-events: none;
             z-index: 10;
         }
+
         .pill {
             /* Pill adjusted for dark background contrast */
             background: rgba(255, 255, 255, 0.9);
-            color: #4a408d; /* Darker purple text */
+            color: #4a408d;
+            /* Darker purple text */
             padding: 14px 28px;
             border-radius: 30px;
             display: inline-block;
@@ -33,6 +38,7 @@
             backdrop-filter: blur(10px);
             transition: transform 0.3s ease;
         }
+
         #canvas-container {
             width: 100vw;
             height: 100vh;
@@ -43,19 +49,22 @@
             display: none;
             position: fixed;
             inset: 0;
-            background: rgba(0, 0, 0, 0.9); /* Darker backdrop for focus */
+            background: rgba(0, 0, 0, 0.9);
+            /* Darker backdrop for focus */
             backdrop-filter: blur(8px);
-            z-index: 1000; /* Ensure it is on top */
+            z-index: 1000;
+            /* Ensure it is on top */
             justify-content: center;
             align-items: center;
             transition: opacity 0.3s ease;
         }
+
         #modalContent {
             position: relative;
             background: #ffffff;
             padding: 20px;
             border-radius: 16px;
-            box-shadow: 0 15px 50px rgba(0,0,0,0.7);
+            box-shadow: 0 15px 50px rgba(0, 0, 0, 0.7);
             max-width: 90%;
             max-height: 90%;
             display: flex;
@@ -66,10 +75,12 @@
             opacity: 0;
             transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.3s ease;
         }
+
         #photoModal.active #modalContent {
             transform: scale(1);
             opacity: 1;
         }
+
         #modalClose {
             position: absolute;
             top: 10px;
@@ -84,19 +95,22 @@
             line-height: 1;
             cursor: pointer;
             z-index: 10;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
             transition: background 0.2s;
         }
+
         #modalClose:hover {
             background: #6a5acd;
         }
+
         #modalImage {
             max-width: 100%;
-            max-height: 80vh; 
+            max-height: 80vh;
             height: auto;
             border-radius: 8px;
             object-fit: contain;
         }
+
         #modalTitle {
             margin-top: 10px;
             font-weight: 700;
@@ -104,6 +118,7 @@
         }
     </style>
 </head>
+
 <body>
 
     <!-- <div id="info">
@@ -133,7 +148,7 @@
             }
         }
     </script>
-    
+
     <!-- TWEEN for animations -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tween.js/18.6.4/tween.umd.js"></script>
 
@@ -157,11 +172,11 @@
         let slideshowIndex = 0;
         let candles = [];
         let blobs = [];
-        let snowParticles; 
+        let snowParticles;
         let musicBoxGroup;
-        let modal, modalImage, modalCloseButton, modalTitle;
-        let currentModalPhoto = null; 
-        
+        let modal, modalImage, modalCloseButton, modalTitle, giftBoxGroup;
+        let currentModalPhoto = null;
+        let TARGET_URL = './thankyou.html'
         // Placeholder audio URL since local files are not accessible.
         const AUDIO_URL = "./assets/audio.mp3";
         let backgroundMusic; // To hold the Audio object
@@ -188,7 +203,9 @@
             tableMat: 0x650a02,   // Deep Red Mat
             musicBoxBrown: 0x6E442B, // Darker, rich brown for the box
             photoBorder: 0xFFFFFF,
-            candle: 0xFF0000      // Periwinkle
+            candle: 0xFF0000,      // Periwinkle
+            gift: 0x6A5ACD,       // Slate Blue/Purple for the box
+            ribbon: 0xFFD700      // Gold for the ribbon
         };
 
         init();
@@ -218,13 +235,14 @@
             setupLighting();
 
             // 5. Objects
-            createBackgroundBlobs(); 
+            createBackgroundBlobs();
             createTable();
-            createCake(); 
+            createCake();
             createPhotoStack();
             createMusicBox();
-            createSnow(); 
-
+            createSnow();
+            giftBoxGroup = createGift();
+            scene.add(giftBoxGroup);
             // 6. Controls
             controls = new OrbitControls(camera, renderer.domElement);
             controls.enableDamping = true;
@@ -235,7 +253,7 @@
 
             raycaster = new THREE.Raycaster();
             mouse = new THREE.Vector2();
-            
+
             // 7. Modal Setup
             modal = document.getElementById('photoModal');
             modalImage = document.getElementById('modalImage');
@@ -244,7 +262,7 @@
             modalCloseButton.addEventListener('click', closePhotoModal);
             // Initialize Audio
             backgroundMusic = new Audio(AUDIO_URL);
-            backgroundMusic.loop = true; 
+            backgroundMusic.loop = true;
             backgroundMusic.volume = 0.5;
 
             window.addEventListener('resize', onWindowResize);
@@ -265,7 +283,7 @@
 
             const rimLight = new THREE.SpotLight(0xaaccff, 0.8);
             rimLight.position.set(-5, 5, -5);
-            rimLight.lookAt(0,0,0);
+            rimLight.lookAt(0, 0, 0);
             scene.add(rimLight);
         }
 
@@ -274,12 +292,12 @@
             canvas.width = 32;
             canvas.height = 32;
             const ctx = canvas.getContext('2d');
-            
+
             ctx.beginPath();
             ctx.arc(16, 16, 15, 0, 2 * Math.PI);
             ctx.fillStyle = 'white';
             ctx.fill();
-            
+
             const texture = new THREE.CanvasTexture(canvas);
             texture.needsUpdate = true;
             return texture;
@@ -291,28 +309,28 @@
             const positions = [];
             const sizes = [];
 
-            const range = 25; 
+            const range = 25;
 
             for (let i = 0; i < particleCount; i++) {
                 positions.push(
-                    (Math.random() * 2 - 1) * range, 
-                    Math.random() * 40 - 20,         
-                    (Math.random() * 2 - 1) * range  
+                    (Math.random() * 2 - 1) * range,
+                    Math.random() * 40 - 20,
+                    (Math.random() * 2 - 1) * range
                 );
-                sizes.push(0.05 + Math.random() * 0.2); 
+                sizes.push(0.05 + Math.random() * 0.2);
             }
 
             geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
             geometry.setAttribute('size', new THREE.Float32BufferAttribute(sizes, 1));
-            
+
             const material = new THREE.PointsMaterial({
                 color: 0xffffff,
-                size: 0.3, 
+                size: 0.3,
                 sizeAttenuation: true,
                 transparent: true,
                 opacity: 0.8,
-                map: createCircleTexture(), 
-                blending: THREE.AdditiveBlending 
+                map: createCircleTexture(),
+                blending: THREE.AdditiveBlending
             });
 
             snowParticles = new THREE.Points(geometry, material);
@@ -324,15 +342,15 @@
 
             const positions = snowParticles.geometry.attributes.position.array;
             const fallSpeed = 0.05;
-            const floorY = -5; 
+            const floorY = -5;
 
             for (let i = 1; i < positions.length; i += 3) {
                 positions[i] -= fallSpeed;
 
                 if (positions[i] < floorY) {
-                    positions[i] = 20; 
-                    positions[i-1] = (Math.random() * 2 - 1) * 25;
-                    positions[i+1] = (Math.random() * 2 - 1) * 25;
+                    positions[i] = 20;
+                    positions[i - 1] = (Math.random() * 2 - 1) * 25;
+                    positions[i + 1] = (Math.random() * 2 - 1) * 25;
                 }
             }
             snowParticles.geometry.attributes.position.needsUpdate = true;
@@ -366,7 +384,7 @@
         //         roughness: 0.3,
         //         metalness: 0.1
         //     });
-            
+
         //     const table = new THREE.Mesh(geometry, material);
         //     table.position.y = -0.5;
         //     table.receiveShadow = true;
@@ -374,8 +392,8 @@
         // }
         function createTable() {
             const tableGroup = new THREE.Group();
-            const woodMaterial = new THREE.MeshStandardMaterial({ 
-                color: PALETTE.tableWood, 
+            const woodMaterial = new THREE.MeshStandardMaterial({
+                color: PALETTE.tableWood,
                 roughness: 0.6,
                 metalness: 0.1
             });
@@ -421,7 +439,7 @@
             const matDepth = TABLE_DEPTH * 0.95;
             const matThickness = 0.02;
             const matGeo = new THREE.BoxGeometry(matWidth, matThickness, matDepth);
-            
+
             const mat = new THREE.Mesh(matGeo, matMaterial);
             mat.position.y = matThickness / 2 + 0.001; // Slightly above Y=0 to prevent Z-fighting
             mat.receiveShadow = true;
@@ -434,13 +452,13 @@
          */
         function createMusicBox() {
             let musicBoxGroup = new THREE.Group();
-            
+
             const BOX_W = 2.8;
             const BOX_H = 0.8;
             const BOX_D = 2.8;
 
             const woodMaterial = new THREE.MeshStandardMaterial({
-                color: PALETTE.musicBoxBrown, 
+                color: PALETTE.musicBoxBrown,
                 roughness: 0.7,
                 metalness: 0.05
             });
@@ -457,9 +475,9 @@
             // 2. Add the Vinyl Disk on top
             vinylDiskGroup = createVinylDisk();
             musicBoxGroup.add(vinylDiskGroup);
-            
+
             // Position the entire music box on the table
-            musicBoxGroup.position.set(2.5, 0, -1.5); 
+            musicBoxGroup.position.set(2.5, 0, -1.5);
             musicBoxGroup.rotation.y = Math.PI / 12; // Slight overall tilt
 
             // Store the rotation tween on the group's userData
@@ -467,27 +485,28 @@
 
             scene.add(musicBoxGroup);
         }
-function createVinylDisk() {
+
+        function createVinylDisk() {
             const vinylGroup = new THREE.Group();
 
             // 1. Black Vinyl Disk
             const diskGeo = new THREE.CylinderGeometry(1.2, 1.2, 0.05, 64);
-            const diskMat = new THREE.MeshStandardMaterial({ 
-                color: 0x111111, 
+            const diskMat = new THREE.MeshStandardMaterial({
+                color: 0x111111,
                 roughness: 0.9,
-                metalness: 0.8 
+                metalness: 0.8
             });
             const disk = new THREE.Mesh(diskGeo, diskMat);
             disk.castShadow = true;
             disk.receiveShadow = true;
-            disk.name = "vinylDisk"; 
+            disk.name = "vinylDisk";
             vinylGroup.add(disk);
 
             // 2. Central Label (Red/Orange)
             const labelGeo = new THREE.CylinderGeometry(0.2, 0.2, 0.06, 32);
-            const labelMat = new THREE.MeshStandardMaterial({ 
+            const labelMat = new THREE.MeshStandardMaterial({
                 color: 0xE74C3C, // Red
-                roughness: 0.5 
+                roughness: 0.5
             });
             const label = new THREE.Mesh(labelGeo, labelMat);
             label.position.y = 0.006; // Slightly above the disk
@@ -495,8 +514,8 @@ function createVinylDisk() {
 
             // Set the vinyl to sit on top of the music box (BOX_H = 0.8, disk height = 0.05)
             // Position: 0.8 (box height) + 0.025 (half disk height) = 0.825
-            vinylGroup.position.set(0, 0.825, 0); 
-            vinylGroup.rotation.y = Math.PI / 4; 
+            vinylGroup.position.set(0, 0.825, 0);
+            vinylGroup.rotation.y = Math.PI / 4;
             console.log("guewbdsbcdkc")
             return vinylGroup;
         }
@@ -505,36 +524,36 @@ function createVinylDisk() {
          * Toggles the background music and animates the vinyl disk rotation.
          */
         function toggleMusic() {
-            if (!vinylDiskGroup) return; 
+            if (!vinylDiskGroup) return;
             if (backgroundMusic.paused) {
                 // Play music and handle potential browser restrictions (requires user gesture)
                 backgroundMusic.play().catch(e => {
                     console.error("Audio playback failed (user interaction required):", e);
                 });
                 console.log("Music playing. Vinyl spinning.");
-                
+
                 // Start a continuous rotation animation for the disk (around Y axis)
                 if (!vinylDiskGroup.userData.rotationTween) {
                     const dummyRotation = { y: vinylDiskGroup.rotation.y };
-                    
+
                     vinylDiskGroup.userData.rotationTween = new TWEEN.Tween(dummyRotation)
                         .to({ y: dummyRotation.y + Math.PI * 2 }, 3000) // 3 seconds for one rotation
                         .repeat(Infinity)
                         .easing(TWEEN.Easing.Linear.None)
                         .onUpdate(() => {
-                             // Apply the rotation from the dummy object to the actual mesh
-                             vinylDiskGroup.rotation.y = dummyRotation.y;
+                            // Apply the rotation from the dummy object to the actual mesh
+                            vinylDiskGroup.rotation.y = dummyRotation.y;
                         })
                         .onRepeat(() => {
-                             // Reset the dummy rotation for the next cycle
-                             dummyRotation.y -= Math.PI * 2;
+                            // Reset the dummy rotation for the next cycle
+                            dummyRotation.y -= Math.PI * 2;
                         })
                         .start();
                 }
             } else {
                 backgroundMusic.pause();
                 console.log("Music paused. Vinyl stopped.");
-                
+
                 // Stop the rotation animation
                 if (vinylDiskGroup.userData.rotationTween) {
                     vinylDiskGroup.userData.rotationTween.stop();
@@ -548,12 +567,12 @@ function createVinylDisk() {
          */
         function createCandle(x, y, z) {
             const candleGroup = new THREE.Group();
-            
+
             // Candle body
             const geo = new THREE.CylinderGeometry(0.05, 0.05, 0.5, 16);
             const mat = new THREE.MeshStandardMaterial({ color: PALETTE.candle, emissive: PALETTE.candle, emissiveIntensity: 0.1 });
             const body = new THREE.Mesh(geo, mat);
-            body.position.y = 0.25; 
+            body.position.y = 0.25;
             candleGroup.add(body);
 
             // Wick (small dark cylinder)
@@ -561,7 +580,7 @@ function createVinylDisk() {
                 new THREE.CylinderGeometry(0.01, 0.01, 0.1, 8),
                 new THREE.MeshBasicMaterial({ color: 0x333333 })
             );
-            wick.position.y = 0.5 + 0.05; 
+            wick.position.y = 0.5 + 0.05;
             wick.name = 'wick';
             candleGroup.add(wick);
 
@@ -570,7 +589,7 @@ function createVinylDisk() {
                 new THREE.SphereGeometry(0.08, 8, 8),
                 new THREE.MeshBasicMaterial({ color: 0xffaa00 })
             );
-            flame.position.y = 0.5 + 0.15; 
+            flame.position.y = 0.5 + 0.15;
             flame.name = 'flame';
             candleGroup.add(flame);
 
@@ -578,21 +597,21 @@ function createVinylDisk() {
             const pointLight = new THREE.PointLight(0xffaa00, 2, 2);
             pointLight.position.set(0, 0.65, 0);
             pointLight.name = 'flameLight';
-            pointLight.decay = 2; 
+            pointLight.decay = 2;
             pointLight.castShadow = false;
             candleGroup.add(pointLight);
-            
+
             candleGroup.position.set(x, y, z);
             cakeGroup.add(candleGroup);
-            
+
             // Store candle data for blowing out and flickering
-            candles.push({ 
-                group: candleGroup, 
-                flame: flame, 
-                wick: wick, 
-                light: pointLight, 
-                isLit: true, 
-                timeOffset: Math.random() * 1000 
+            candles.push({
+                group: candleGroup,
+                flame: flame,
+                wick: wick,
+                light: pointLight,
+                isLit: true,
+                timeOffset: Math.random() * 1000
             });
         }
 
@@ -601,13 +620,13 @@ function createVinylDisk() {
 
             // Materials
             const spongeMat = new THREE.MeshStandardMaterial({ color: PALETTE.cakeBase, roughness: 0.5 });
-            const frostingMat = new THREE.MeshStandardMaterial({ 
-                color: PALETTE.cakeIcing, 
+            const frostingMat = new THREE.MeshStandardMaterial({
+                color: PALETTE.cakeIcing,
                 roughness: 0.1, // Shiny frosting
                 metalness: 0.1,
                 side: THREE.DoubleSide
             });
-            
+
             /**
              * Adds a cake layer (sponge + rounded/thick frosting on top).
              */
@@ -615,7 +634,7 @@ function createVinylDisk() {
                 const spongeTopY = center_y + height / 2;
                 const frostingThickness = 0.08;
                 const frostingRimRadius = 0.15; // Controls the thickness of the rounded edge
-                
+
                 // 1. Sponge Layer
                 const layerGeo = new THREE.CylinderGeometry(radius, radius, height, 40);
                 const layer = new THREE.Mesh(layerGeo, spongeMat);
@@ -638,7 +657,7 @@ function createVinylDisk() {
                     100                             // Radial segments
                 );
                 const frostingRim = new THREE.Mesh(rimGeo, frostingMat);
-                
+
                 // Position the torus so its center sits on top of the frosting disk, and slightly overlapping the sponge edge
                 frostingRim.position.y = topFrosting.position.y;
                 frostingRim.rotation.x = Math.PI / 2; // Rotate to lie flat
@@ -646,35 +665,35 @@ function createVinylDisk() {
                 cakeGroup.add(frostingRim);
 
                 // Calculate the new top surface Y position (for the next layer or candles)
-                return { 
-                    topY: topFrosting.position.y + frostingThickness / 2, 
-                    radius: radius 
+                return {
+                    topY: topFrosting.position.y + frostingThickness / 2,
+                    radius: radius
                 };
             };
 
             // Layer 1 (Bottom): Radius 1.8, Height 0.8, Center Y 0.4
-            const L1 = addLayer(1.8, 0.8, 0.4); 
-            
+            const L1 = addLayer(1.8, 0.8, 0.4);
+
             // Layer 2 (Middle): Radius 1.3, Height 0.7. Center Y is on top of L1's frosting + L2 height/2
-            const L2 = addLayer(1.3, 0.7, L1.topY + 0.7/2); 
+            const L2 = addLayer(1.3, 0.7, L1.topY + 0.7 / 2);
 
             // Layer 3 (Top): Radius 0.9, Height 0.6
-            const topLayerData = addLayer(0.9, 0.6, L2.topY + 0.6/2); 
-            
+            const topLayerData = addLayer(0.9, 0.6, L2.topY + 0.6 / 2);
+
             // Initial Candles Arrangement (on the top layer frosting)
             const candleCount = 8;
-            const candleRadius = topLayerData.radius * 0.7; 
-            const topFrostingSurfaceY = topLayerData.topY; 
+            const candleRadius = topLayerData.radius * 0.7;
+            const topFrostingSurfaceY = topLayerData.topY;
 
-            for(let i = 0; i < candleCount; i++) {
+            for (let i = 0; i < candleCount; i++) {
                 const angle = (i / candleCount) * Math.PI * 2;
                 const x = Math.cos(angle) * candleRadius;
                 const z = Math.sin(angle) * candleRadius;
-                
+
                 // Add a small offset so the candle body sits on the frosting surface
-                createCandle(x, topFrostingSurfaceY, z); 
+                createCandle(x, topFrostingSurfaceY, z);
             }
-            
+
             // Collider
             const collider = new THREE.Mesh(
                 new THREE.CylinderGeometry(2, 2, topLayerData.topY + 0.5, 16),
@@ -687,7 +706,117 @@ function createVinylDisk() {
             cakeGroup.position.set(-1.5, 0, 0);
             scene.add(cakeGroup);
         }
+
+        function createGift() {
+            const giftBoxGroup = new THREE.Group();
+
+            const GIFT_SIZE = 1.0;
+            const BOX_H = GIFT_SIZE;
+            const BOX_LID_H = 0.1;
+            const RIBBON_T = 0.1;
+
+            const giftMat = new THREE.MeshStandardMaterial({
+                color: PALETTE.gift, // Slate Blue/Purple
+                roughness: 0.5,
+                metalness: 0.1
+            });
+            const ribbonMat = new THREE.MeshStandardMaterial({
+                color: PALETTE.ribbon, // Gold
+                roughness: 0.3,
+                metalness: 0.9
+            });
+
+            // 1. Gift Body
+            const bodyGeo = new THREE.BoxGeometry(GIFT_SIZE, BOX_H, GIFT_SIZE);
+            const body = new THREE.Mesh(bodyGeo, giftMat);
+            body.position.y = BOX_H / 2;
+            body.castShadow = true;
+            body.receiveShadow = true;
+            giftBoxGroup.add(body);
+
+            // 2. Gift Lid
+            const lidGeo = new THREE.BoxGeometry(GIFT_SIZE * 1.05, BOX_LID_H, GIFT_SIZE * 1.05);
+            const lid = new THREE.Mesh(lidGeo, giftMat);
+            lid.position.y = BOX_H + BOX_LID_H / 2;
+            lid.name = "giftLid";
+            lid.castShadow = true;
+            giftBoxGroup.add(lid);
+
+            // 3. Vertical Ribbons (attached to the main group)
+            const vertRibbonGeo = new THREE.BoxGeometry(RIBBON_T, BOX_H -0.02, RIBBON_T);
+            const vertRibbonX = new THREE.Mesh(vertRibbonGeo, ribbonMat);
+            const vertRibbonZ = new THREE.Mesh(vertRibbonGeo, ribbonMat);
+            vertRibbonX.position.y = BOX_H / 2;
+            vertRibbonZ.position.y = BOX_H / 2;
+            vertRibbonX.scale.z = GIFT_SIZE / RIBBON_T; // Stretch along Z
+            vertRibbonZ.scale.x = GIFT_SIZE / RIBBON_T; // Stretch along X
+            giftBoxGroup.add(vertRibbonX);
+            giftBoxGroup.add(vertRibbonZ);
+
+            // 4. Horizontal Ribbon (attached to the lid so it moves when opened)
+            const horizRibbonGeo = new THREE.BoxGeometry(GIFT_SIZE * 1.05, BOX_LID_H * 1.5, RIBBON_T);
+            const horizRibbonX = new THREE.Mesh(horizRibbonGeo, ribbonMat);
+            const horizRibbonZ = new THREE.Mesh(horizRibbonGeo, ribbonMat);
+            horizRibbonX.rotation.y = Math.PI / 2;
+
+            const ribbonY = BOX_LID_H ;
+            horizRibbonX.position.y = ribbonY;
+            horizRibbonZ.position.y = ribbonY;
+            lid.add(horizRibbonX);
+            lid.add(horizRibbonZ);
+
+            // 5. Bow Placeholder 
+            const bowGeo = new THREE.BoxGeometry(0.3, 0.3, 0.1);
+            const bow = new THREE.Mesh(bowGeo, ribbonMat);
+            bow.position.y = BOX_LID_H + 0.15;
+            bow.castShadow = true;
+            lid.add(bow);
+
+            // Set final position and rotation for the group
+            giftBoxGroup.position.set(-2.5, 0, 3);
+            giftBoxGroup.rotation.y = -Math.PI / 8;
+            giftBoxGroup.name = "giftBox"; // Name the group for click detection
+
+            // Store references on the group for animation and state
+            giftBoxGroup.userData.lid = lid;
+            giftBoxGroup.userData.isOpened = false;
+
+            return giftBoxGroup;
+        }
         
+        function openGift(giftGroup) {
+            if (giftGroup.userData.isOpened) return;
+
+            giftGroup.userData.isOpened = true;
+            const lid = giftGroup.userData.lid;
+
+            const originalY = lid.position.y;
+
+            // Step 1: Pop the lid up slightly (short, quick bounce)
+            new TWEEN.Tween(lid.position)
+                .to({ y: originalY + 0.5 }, 200)
+                .easing(TWEEN.Easing.Quadratic.Out)
+                .start();
+
+            // Step 2: Rotate and translate the lid away, and redirect
+            new TWEEN.Tween(lid.rotation)
+                .to({ z: Math.PI / 2, y: lid.rotation.y + Math.PI / 4 }, 800)
+                .delay(200)
+                .easing(TWEEN.Easing.Cubic.InOut)
+                .start();
+
+            new TWEEN.Tween(lid.position)
+                .to({ x: -1, y: originalY + 1.5, z: 1 }, 800)
+                .delay(200)
+                .easing(TWEEN.Easing.Cubic.InOut)
+                .onComplete(() => {
+                    // Redirect after the animation completes
+                    setTimeout(() => {
+                        window.open(TARGET_URL, '_blank');
+                    }, 500);
+                })
+                .start();
+        }
         /**
          * Hides the flame, wick, and fades the light for all candles.
          */
@@ -696,12 +825,12 @@ function createVinylDisk() {
             if (candles.some(c => c.isLit)) {
                 candles.forEach(candle => {
                     candle.isLit = false; // Stop flicker animation
-                    
+
                     // 1. Light Fade-out
                     if (candle.light) {
                         new TWEEN.Tween({ intensity: candle.light.intensity })
                             .to({ intensity: 0 }, 500)
-                            .onUpdate(function(obj) {
+                            .onUpdate(function (obj) {
                                 candle.light.intensity = obj.intensity;
                             })
                             .start();
@@ -711,7 +840,7 @@ function createVinylDisk() {
                     new TWEEN.Tween({ scale: 1 })
                         .to({ scale: 0.001 }, 300)
                         .easing(TWEEN.Easing.Quadratic.Out)
-                        .onUpdate(function(obj) {
+                        .onUpdate(function (obj) {
                             candle.flame.scale.set(obj.scale, obj.scale, obj.scale);
                             candle.wick.scale.set(obj.scale, obj.scale, obj.scale);
                         })
@@ -726,7 +855,7 @@ function createVinylDisk() {
         function createPhotoTexture(url, fallbackText) {
             const loader = new THREE.TextureLoader();
             // Load external texture for the 3D card surface
-            const texture = loader.load(url, 
+            const texture = loader.load(url,
                 // Success callback
                 (t) => { t.needsUpdate = true; },
                 // Progress callback
@@ -740,12 +869,12 @@ function createVinylDisk() {
                     const ctx = cvs.getContext('2d');
                     ctx.fillStyle = PALETTE.photoBorder;
                     ctx.fillRect(0, 0, 512, 600);
-                    
+
                     ctx.fillStyle = '#444';
                     ctx.font = 'bold 50px Inter, Arial';
                     ctx.textAlign = 'center';
                     ctx.fillText(fallbackText, 256, 300);
-                    
+
                     const fallbackTexture = new THREE.CanvasTexture(cvs);
                     fallbackTexture.needsUpdate = true;
                     return fallbackTexture;
@@ -756,22 +885,22 @@ function createVinylDisk() {
 
         function createPhotoStack() {
             photoStackGroup = new THREE.Group();
-            
+
             // Mimic the requested file structure
             const files = ["./assets/image1.jpg", "./assets/image2.jpg", "./assets/image3.jpg", "./assets/image4.jpg", "./assets/image5.jpg"];
-            
+
             files.forEach((file, i) => {
-                const url = IMAGE_FALLBACK_URLS[i % IMAGE_FALLBACK_URLS.length]; 
-                const title = photos_title[i % photos_title.length]; 
+                const url = IMAGE_FALLBACK_URLS[i % IMAGE_FALLBACK_URLS.length];
+                const title = photos_title[i % photos_title.length];
                 const fallbackText = `Photo ${i + 1}`;
-                
+
                 // Use TextureLoader for the 3D card surface
-                const tex = createPhotoTexture(url, fallbackText); 
-                
+                const tex = createPhotoTexture(url, fallbackText);
+
                 // BoxGeometry simulates a thin, slightly wider photo card (1.3 width, 1.5 length)
                 const geo = new THREE.BoxGeometry(1.3, 0.04, 1.5);
                 const mat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.4 });
-                
+
                 const mesh = new THREE.Mesh(geo, mat);
                 mesh.castShadow = true;
                 mesh.receiveShadow = true;
@@ -796,7 +925,7 @@ function createVinylDisk() {
             });
 
             // The last photo added is on top (highest 'i'), which is correct for the initial slideshow start
-            
+
             photoStackGroup.position.set(2, 0, 2);
             scene.add(photoStackGroup);
 
@@ -817,7 +946,7 @@ function createVinylDisk() {
             isSlideshowActive = true;
             // Start from the top photo (last one in the array)
             console.log(photos);
-            slideshowIndex = photos.length - 1; 
+            slideshowIndex = photos.length - 1;
             playNextSlide();
         }
 
@@ -830,19 +959,19 @@ function createVinylDisk() {
             }
 
             const photo = photos[slideshowIndex];
-            const text = photos_title[slideshowIndex%photos_title.length];
+            const text = photos_title[slideshowIndex % photos_title.length];
             console.log(slideshowIndex)
             console.log(text)
             photo.visible = true; // Ensure the next card is visible
-            
+
             // Detach from the stack group to animate in world space
-            scene.attach(photo); 
-            
+            scene.attach(photo);
+
             const camDir = new THREE.Vector3();
             camera.getWorldDirection(camDir);
             // End position is slightly in front of the camera (world coordinates)
-            const end = new THREE.Vector3().copy(camera.position).add(camDir.multiplyScalar(4)); 
-            
+            const end = new THREE.Vector3().copy(camera.position).add(camDir.multiplyScalar(4));
+
             // Calculate end rotation to face the camera
             const dummy = new THREE.Object3D();
             dummy.position.copy(end);
@@ -854,7 +983,7 @@ function createVinylDisk() {
                 .to(end, 1000)
                 .easing(TWEEN.Easing.Cubic.InOut)
                 .start();
-            
+
             // Animate rotation (to face the camera)
             new TWEEN.Tween(photo.rotation)
                 .to({
@@ -865,23 +994,23 @@ function createVinylDisk() {
                 .easing(TWEEN.Easing.Cubic.InOut)
                 .onComplete(() => {
                     // Animation complete, show the modal
-                    showPhotoModal(photo,text);
+                    showPhotoModal(photo, text);
                 })
                 .start();
         }
 
-        function showPhotoModal(photo,text) {
+        function showPhotoModal(photo, text) {
             currentModalPhoto = photo;
             console.log(text)
             // Set image source and title
             modalImage.src = photo.userData.imageUrl;
             modalTitle.textContent = text; // Display the mock file name
-            
+
             // Show the modal with a small delay for smooth transition
             setTimeout(() => {
                 modal.style.display = 'flex';
                 // Add 'active' class to trigger the CSS transition for modal content
-                modal.classList.add('active'); 
+                modal.classList.add('active');
             }, 50);
 
             // Hide the 3D photo mesh while the modal is open
@@ -890,18 +1019,18 @@ function createVinylDisk() {
 
         function closePhotoModal() {
             if (!currentModalPhoto) return;
-            
+
             // Remove 'active' class to start the closing transition
             modal.classList.remove('active');
-            
+
             // Wait for transition to complete before hiding the display property
             setTimeout(() => {
-                modal.style.display = 'none'; 
-                
+                modal.style.display = 'none';
+
                 // --- Transition to Next Card ---
-                currentModalPhoto = null; 
+                currentModalPhoto = null;
                 slideshowIndex--;
-                
+
                 if (slideshowIndex >= 0) {
                     // Start the process for the next photo
                     playNextSlide();
@@ -919,17 +1048,17 @@ function createVinylDisk() {
             photos.forEach(p => {
                 p.visible = true;
                 photoStackGroup.attach(p); // Re-attach to group
-                
+
                 // Animate back to original position/rotation
-                new TWEEN.Tween(p.position).to(p.userData.originalPos, 600).start(); 
+                new TWEEN.Tween(p.position).to(p.userData.originalPos, 600).start();
                 new TWEEN.Tween(p.rotation).to({
                     x: p.userData.originalRot.x,
                     y: p.userData.originalRot.y,
                     z: p.userData.originalRot.z
                 }, 600).start();
             });
-             // Reset the index for the next cycle
-            slideshowIndex = photos.length - 1; 
+            // Reset the index for the next cycle
+            slideshowIndex = photos.length - 1;
         }
 
         // --- Interaction ---
@@ -938,14 +1067,14 @@ function createVinylDisk() {
             // Parallax effect on background blobs
             const x = (event.clientX / window.innerWidth) * 2 - 1;
             const y = -(event.clientY / window.innerHeight) * 2 + 1;
-            
+
             blobs.forEach(b => {
                 b.mesh.rotation.z = Math.sin(x * 0.5) * 0.1;
                 b.mesh.rotation.x = Math.sin(y * 0.5) * 0.1;
             });
         }
 
-        function onMouseClick(event) {
+function onMouseClick(event) {
             mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
             mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
             raycaster.setFromCamera(mouse, camera);
@@ -962,13 +1091,21 @@ function createVinylDisk() {
                     if (!isSlideshowActive) startSlideshow();
                 }
 
-                // Vinyl Disk Click
-                if (obj.name === "vinylDisk") {
+                if (obj.name === "vinylDisk" || obj.name === "musicBox") {
                     toggleMusic();
+                }
+
+                // Check for gift box click
+                let parentGroup = obj;
+                while (parentGroup && parentGroup.name !== 'giftBox' && parentGroup.parent) {
+                    parentGroup = parentGroup.parent;
+                }
+
+                if (parentGroup.name === "giftBox") {
+                    openGift(parentGroup);
                 }
             }
         }
-
         function onWindowResize() {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
@@ -982,7 +1119,7 @@ function createVinylDisk() {
 
             // Animate blobs
             blobs.forEach((b, i) => {
-                b.mesh.rotation.x += 0.001 * (i+1);
+                b.mesh.rotation.x += 0.001 * (i + 1);
                 b.mesh.rotation.y += 0.002;
                 b.mesh.position.y += Math.sin(time * 0.001 + i) * 0.01;
             });
@@ -993,7 +1130,7 @@ function createVinylDisk() {
                     // Slight random movement for the flame
                     c.flame.position.x = Math.sin(time * 0.01 + c.timeOffset) * 0.01;
                     c.flame.position.z = Math.cos(time * 0.008 + c.timeOffset) * 0.01;
-                    
+
                     // Intensity flicker
                     c.light.intensity = 2 + Math.sin(time * 0.02 + c.timeOffset) * 0.5;
                 }
@@ -1006,4 +1143,5 @@ function createVinylDisk() {
         }
     </script>
 </body>
+
 </html>
